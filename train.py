@@ -11,6 +11,7 @@ from torch.autograd import Variable
 from torchvision import datasets, transforms
 from torch.utils.data.dataset import Subset
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from RAdam.radam import RAdam
 
 from models.controller import Controller
 from models.shared_cnn import SharedCNN
@@ -636,7 +637,7 @@ def main():
     shared_cnn = shared_cnn.cuda()
 
     # https://github.com/melodyguan/enas/blob/master/src/utils.py#L218
-    controller_optimizer = torch.optim.Adam(params=controller.parameters(),
+    controller_optimizer = RAdam(params=controller.parameters(),
                                             lr=args.controller_lr,
                                             betas=(0.0, 0.999),
                                             eps=1e-3)
