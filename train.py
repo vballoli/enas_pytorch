@@ -15,7 +15,7 @@ from RAdam.radam import RAdam
 
 from models.controller import Controller
 from models.shared_cnn import SharedCNN
-from utils.utils import AverageMeter, Logger
+from utils.utils import AverageMeter, Logger, latency_profiler
 from utils.cutout import Cutout
 
 parser = argparse.ArgumentParser(description='ENAS')
@@ -283,6 +283,7 @@ def train_controller(epoch,
         # detach to make sure that gradients aren't backpropped through the reward
         reward = torch.tensor(val_acc.detach())
         reward += args.controller_entropy_weight * controller.sample_entropy
+        print("Latency ................", latency_profiler(shared_cnn, sample_arc, gpu=True))
 
         if baseline is None:
             baseline = val_acc
