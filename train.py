@@ -204,7 +204,7 @@ def train_shared_cnn(epoch,
                       '\tch_step=' + str(i) + \
                       '\tloss=%.6f' % (loss_meter.val) + \
                       '\tlr=%.4f' % (learning_rate) + \
-                      '\t|g|=%.4f' % (grad_norm.item()) + \
+                      '\t|g|=%.4f' % (grad_norm) + \
                       '\tacc=%.4f' % (train_acc_meter.val) + \
                       '\ttime=%.2fit/s' % (1. / (end - start))
             print(display)
@@ -321,7 +321,7 @@ def train_controller(epoch,
                           '\tloss=%.3f' % (loss_meter.val) + \
                           '\tent=%.2f' % (controller.sample_entropy.item()) + \
                           '\tlr=%.4f' % (learning_rate) + \
-                          '\t|g|=%.4f' % (grad_norm.item()) + \
+                          '\t|g|=%.4f' % (grad_norm) + \
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start))
