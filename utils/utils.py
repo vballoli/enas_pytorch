@@ -68,8 +68,12 @@ def latency_profiler(model, sample_arc, gpu=True, tensor=(1, 3, 224, 224)):
     eval_model = copy.deepcopy(model)
     eval_model.eval()
     if gpu:
-        eval_model = eval_model.cuda(device=0)
-        tensor = tensor.cuda(device=0)
-    with torch.autograd.profiler.profile(use_cuda=gpu) as prof:
-        eval_model(tensor, sample_arc)
-    return (prof.self_cpu_time_total) / (1000.0 * 1000.0)
+        eval_model = eval_model.cuda(device=1)
+        tensor = tensor.cuda(device=1)
+    times = []
+    for _ in range(100):
+        with torch.autograd.profiler.profile(use_cuda=gpu) as prof:
+            eval_model(tensor, sample_arc)
+        time = (prof.self_cpu_time_total) / (1000.0)
+        times.append(time)
+    return sum(times) / 100.0

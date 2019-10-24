@@ -281,12 +281,12 @@ def train_controller(epoch,
         val_acc = torch.mean((torch.max(pred, 1)[1] == labels).type(torch.float))
 
         # detach to make sure that gradients aren't backpropped through the reward
-        reward = torch.tensor(val_acc.detach())
+        latency = latency_profiler(shared_cnn, sample_arc, gpu=True)
+        reward = torch.tensor(val_acc.detach()) * ((latency / 100.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
-        print("Latency ................", latency_profiler(shared_cnn, sample_arc, gpu=True))
 
         if baseline is None:
-            baseline = val_acc
+            baseline = val_acc * latency
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
@@ -638,7 +638,7 @@ def main():
     shared_cnn = shared_cnn.cuda()
 
     # https://github.com/melodyguan/enas/blob/master/src/utils.py#L218
-    controller_optimizer = RAdam(params=controller.parameters(),
+    controller_optimizer = torch.optim.Adam(params=controller.parameters(),
                                             lr=args.controller_lr,
                                             betas=(0.0, 0.999),
                                             eps=1e-3)
