@@ -286,7 +286,7 @@ def train_controller(epoch,
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * latency
+            baseline = val_acc * ((latency / 100.0) ** (-0.07))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
