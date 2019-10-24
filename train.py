@@ -348,6 +348,13 @@ def train_controller(epoch,
         opts=dict(title='controller_loss', xlabel='Iteration', ylabel='Loss'),
         update='append' if epoch > 0 else None)
 
+    vis_win['latency'] = vis.line(
+        X=np.array([epoch]),
+        Y=np.array([latency]),
+        win=vis_win['latency'],
+        opts=dict(title='Model latency', xlable='Iteration', ylabel='Latency'),
+        update='append' if epoch > 0 else None)
+
     shared_cnn.train()
     return baseline
 
