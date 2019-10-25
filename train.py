@@ -327,8 +327,8 @@ def train_controller(epoch,
                           '\t|g|=%.4f' % (grad_norm) + \
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
-                          '\ttime=%.2fit/s' % (1. / (end - start) + \
-                          '\tlatency=%0.3f' % (latency_meter.val))
+                          '\ttime=%.2fit/s' % (1. / (end - start)) + \
+                          '\tlatency=%0.3f' % (latency_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
