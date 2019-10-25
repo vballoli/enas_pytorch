@@ -88,7 +88,7 @@ def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 224, 224)):
     eval_model = eval_model.cuda(device=1)
     eval_model = eval_model.eval()
     start.record()
-    model(tensor, sample_arc)
+    eval_model(tensor, sample_arc)
     end.record()
 
     # Waits for everything to finish running
