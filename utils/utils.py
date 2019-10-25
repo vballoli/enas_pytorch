@@ -79,3 +79,18 @@ def latency_profiler(model, sample_arc, gpu=True, tensor=(1, 3, 224, 224)):
     del eval_model
     del tensor
     return sum(times) / 100.0
+
+def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 224, 224)):
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    tensor = torch.Tensor(tensor).cuda(device=1)
+    eval_model = eval_model.cuda(device=1)
+    eval_model = eval_model.eval()
+    start.record()
+    model(tensor, sample_arc)
+    end.record()
+
+    # Waits for everything to finish running
+    torch.cuda.synchronize(device=1)
+
+    return start.elapsed_time(end)

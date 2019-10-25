@@ -15,7 +15,7 @@ from RAdam.radam import RAdam
 
 from models.controller import Controller
 from models.shared_cnn import SharedCNN
-from utils.utils import AverageMeter, Logger, latency_profiler
+from utils.utils import AverageMeter, Logger, latency_profiler, cuda_latency_profiler
 from utils.cutout import Cutout
 
 parser = argparse.ArgumentParser(description='ENAS')
@@ -282,7 +282,7 @@ def train_controller(epoch,
         val_acc = torch.mean((torch.max(pred, 1)[1] == labels).type(torch.float))
 
         # detach to make sure that gradients aren't backpropped through the reward
-        latency = latency_profiler(shared_cnn, sample_arc, gpu=True)
+        latency = float(cuda_latency_profiler(shared_cnn, sample_arc, gpu=True))
         print("Latency: ", latency)
         reward = torch.tensor(val_acc.detach()) * ((latency / 100.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
