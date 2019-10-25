@@ -60,7 +60,7 @@ args = parser.parse_args()
 vis = visdom.Visdom()
 vis.env = 'ENAS_' + args.output_filename
 vis_win = {'shared_cnn_acc': None, 'shared_cnn_loss': None, 'controller_reward': None,
-           'controller_acc': None, 'controller_loss': None}
+           'controller_acc': None, 'controller_loss': None, 'latency': None}
 
 
 def load_datasets():
@@ -265,6 +265,7 @@ def train_controller(epoch,
     baseline_meter = AverageMeter()
     val_acc_meter = AverageMeter()
     loss_meter = AverageMeter()
+    latency_meter = AverageMeter()
 
     controller.zero_grad()
     for i in range(args.controller_train_steps * args.controller_num_aggregate):
@@ -301,6 +302,7 @@ def train_controller(epoch,
         baseline_meter.update(baseline.item())
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
+        latency_meter.update(latency)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
@@ -350,7 +352,7 @@ def train_controller(epoch,
 
     vis_win['latency'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([latency]),
+        Y=np.array([latency_meter.avg]),
         win=vis_win['latency'],
         opts=dict(title='Model latency', xlable='Iteration', ylabel='Latency'),
         update='append' if epoch > 0 else None)
