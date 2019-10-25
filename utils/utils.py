@@ -83,7 +83,7 @@ def latency_profiler(model, sample_arc, gpu=True, tensor=(1, 3, 224, 224)):
 def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 224, 224)):
     start = torch.cuda.Event(enable_timing=True)
     end = torch.cuda.Event(enable_timing=True)
-    tensor = torch.Tensor(tensor).cuda(device=1)
+    tensor = torch.randn(tensor).cuda(device=1)
     eval_model = copy.deepcopy(model)
     eval_model = eval_model.cuda(device=1)
     eval_model = eval_model.eval()
