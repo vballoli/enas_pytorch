@@ -282,7 +282,7 @@ def train_controller(epoch,
         val_acc = torch.mean((torch.max(pred, 1)[1] == labels).type(torch.float))
 
         # detach to make sure that gradients aren't backpropped through the reward
-        latency = float(cuda_latency_profiler(shared_cnn, sample_arc, gpu=True))
+        latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
         print("Latency: ", latency)
         reward = torch.tensor(val_acc.detach()) * ((latency / 100.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
