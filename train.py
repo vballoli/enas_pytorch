@@ -283,6 +283,7 @@ def train_controller(epoch,
 
         # detach to make sure that gradients aren't backpropped through the reward
         latency = latency_profiler(shared_cnn, sample_arc, gpu=True)
+        print("Latency: ", latency)
         reward = torch.tensor(val_acc.detach()) * ((latency / 100.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
@@ -326,7 +327,8 @@ def train_controller(epoch,
                           '\t|g|=%.4f' % (grad_norm) + \
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
-                          '\ttime=%.2fit/s' % (1. / (end - start))
+                          '\ttime=%.2fit/s' % (1. / (end - start) + \
+                          '\tlatency=%0.3f' % (latency_meter.val))
                 print(display)
 
     vis_win['controller_reward'] = vis.line(

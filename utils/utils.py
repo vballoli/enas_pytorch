@@ -76,4 +76,6 @@ def latency_profiler(model, sample_arc, gpu=True, tensor=(1, 3, 224, 224)):
             eval_model(tensor, sample_arc)
         time = (prof.self_cpu_time_total) / (1000.0)
         times.append(time)
+    del eval_model
+    del tensor
     return sum(times) / 100.0
