@@ -60,4 +60,4 @@ class ArithmeticIntensity(object):
             memory_access_in = m.memory_access_in
             memory_access_out = m.memory_access_out
 
-        return total_ai, total_macs
+        return float(total_ai), float(total_macs)
