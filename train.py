@@ -285,8 +285,8 @@ def train_controller(epoch,
 
         # detach to make sure that gradients aren't backpropped through the reward
         #latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
-        arithmetic_intensity = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224))
-        reward = torch.tensor(val_acc.detach()) * ((sample_arc / 1000.0) ** (-0.07))
+        arithmetic_intensity = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
+        reward = torch.tensor(val_acc.detach()) * ((arithmetic_intensity / 1000.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
