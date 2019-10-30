@@ -16,13 +16,12 @@ class ArithmeticIntensity(object):
         assert alpha is not None, "Enter valid alpha"
         assert beta is not None, "Enter valid beta"
         if model:
-            self.model = copy.deepcopy(model)
+            self.model = copy.deepcopy(model.cpu())
         else:
             try:
                 self.model = read_model(path)
             except:
                 assert False, "Read model error"
-        self.model
         self.layers = extract_layers(model, [])
         self.data_format = data_format
         if len(data_format) == 3:
@@ -44,6 +43,8 @@ class ArithmeticIntensity(object):
     def get_metrics(self):
         """
         """
+        self.model.cpu()
+        self.model.eval()
         dummy = torch.ones(1, *self.input_dims[1:])
         self.model.apply(add_hook)
         with torch.no_grad():
