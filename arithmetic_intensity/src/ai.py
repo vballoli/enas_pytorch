@@ -43,9 +43,9 @@ class ArithmeticIntensity(object):
     def get_metrics(self):
         """
         """
-        self.model.cpu()
+        self.model.cuda()
         self.model.eval()
-        dummy = torch.ones(1, *self.input_dims[1:])
+        dummy = torch.ones(1, *self.input_dims[1:]).cuda()
         self.model.apply(add_hook)
         with torch.no_grad():
             self.model(torch.ones(1, 3, 224, 224), self.sample_arc)
