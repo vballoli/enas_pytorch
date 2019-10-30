@@ -17,6 +17,7 @@ from models.controller import Controller
 from models.shared_cnn import SharedCNN
 from utils.utils import AverageMeter, Logger, latency_profiler, cuda_latency_profiler
 from utils.cutout import Cutout
+from arithmetic_intensity.src.ai import ArithmeticIntensity
 
 parser = argparse.ArgumentParser(description='ENAS')
 
@@ -60,7 +61,7 @@ args = parser.parse_args()
 vis = visdom.Visdom()
 vis.env = 'ENAS_' + args.output_filename
 vis_win = {'shared_cnn_acc': None, 'shared_cnn_loss': None, 'controller_reward': None,
-           'controller_acc': None, 'controller_loss': None, 'latency': None}
+           'controller_acc': None, 'controller_loss': None, 'latency': None, 'arithmetic_intensity': None}
 
 
 def load_datasets():
@@ -265,7 +266,8 @@ def train_controller(epoch,
     baseline_meter = AverageMeter()
     val_acc_meter = AverageMeter()
     loss_meter = AverageMeter()
-    latency_meter = AverageMeter()
+    #latency_meter = AverageMeter()
+    arithmetic_intensity_meter = AverageMeter()
 
     controller.zero_grad()
     for i in range(args.controller_train_steps * args.controller_num_aggregate):
@@ -282,12 +284,13 @@ def train_controller(epoch,
         val_acc = torch.mean((torch.max(pred, 1)[1] == labels).type(torch.float))
 
         # detach to make sure that gradients aren't backpropped through the reward
-        latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
-        reward = torch.tensor(val_acc.detach()) * ((latency / 10.0) ** (-0.07))
+        #latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
+        arithmetic_intensity = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc)
+        reward = torch.tensor(val_acc.detach()) * ((sample_arc / 1000.0) ** (-0.07))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((latency / 10.0) ** (-0.07))
+            baseline = val_acc * ((arithmetic_intensity / 1000.0) ** (-0.07))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
@@ -302,7 +305,8 @@ def train_controller(epoch,
         baseline_meter.update(baseline.item())
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
-        latency_meter.update(latency)
+        #latency_meter.update(latency)
+        arithmetic_intensity_meter.update(arithmetic_intensity)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
@@ -327,7 +331,7 @@ def train_controller(epoch,
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start)) + \
-                          '\tlatency=%0.3f' % (latency_meter.val)
+                          '\tAI=%0.3f' % (arithmetic_intensity_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
@@ -351,11 +355,11 @@ def train_controller(epoch,
         opts=dict(title='controller_loss', xlabel='Iteration', ylabel='Loss'),
         update='append' if epoch > 0 else None)
 
-    vis_win['latency'] = vis.line(
+    vis_win['arithmetic_intensity'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([latency_meter.avg]),
-        win=vis_win['latency'],
-        opts=dict(title='Model latency', xlable='Iteration', ylabel='Latency'),
+        Y=np.array([arithmetic_intensity_meter.avg]),
+        win=vis_win['arithmetic_intensity'],
+        opts=dict(title='Model AI', xlable='Iteration', ylabel='AI'),
         update='append' if epoch > 0 else None)
 
     shared_cnn.train()
@@ -700,4 +704,9 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+    print("Start time: ", start_time)
     main()
+    end_time = time.time()
+    print("End time time: ", end_time)
+    print("Time taken: ", end_time - start_time)
