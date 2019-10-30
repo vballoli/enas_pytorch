@@ -45,10 +45,10 @@ class ArithmeticIntensity(object):
         """
         self.model.cuda()
         self.model.eval()
-        dummy = torch.ones(1, *self.input_dims[1:]).cuda()
+        dummy = torch.ones(1, *self.input_dims[1:])
         self.model.apply(add_hook)
         with torch.no_grad():
-            self.model(torch.ones(1, 3, 224, 224), self.sample_arc)
+            self.model(torch.ones(1, 3, 224, 224).cuda(), self.sample_arc)
         total_ai = 0
         total_macs = 0
         for m in self.model.modules():
