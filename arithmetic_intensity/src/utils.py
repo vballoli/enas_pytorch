@@ -66,7 +66,7 @@ handler_collection = []
 def add_hook(layer):
     if len(list(layer.children())) > 0:
         return
-
+        
     layer.register_buffer('ai', torch.zeros(1))
     layer.register_buffer('macs', torch.zeros(1))
     layer.register_buffer('weights', torch.zeros(1))
@@ -75,4 +75,3 @@ def add_hook(layer):
     layer.register_buffer('memory_access_out', torch.zeros(1))
     handler = layer.register_forward_hook(conv_fn)
     handler_collection.append(handler)
-    print("Registered %s" % str(layer))
