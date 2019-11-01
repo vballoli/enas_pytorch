@@ -4,6 +4,7 @@ import time
 import visdom
 import argparse
 import numpy as np
+import copy
 
 import torch
 import torch.nn as nn
@@ -62,7 +63,8 @@ args = parser.parse_args()
 vis = visdom.Visdom()
 vis.env = 'ENAS_' + args.output_filename
 vis_win = {'shared_cnn_acc': None, 'shared_cnn_loss': None, 'controller_reward': None,
-           'controller_acc': None, 'controller_loss': None, 'latency': None, 'arithmetic_intensity': None}
+           'controller_acc': None, 'controller_loss': None, 'latency': None, 'arithmetic_intensity': None, 
+           'MACs': None}
 
 
 def load_datasets():
@@ -268,7 +270,8 @@ def train_controller(epoch,
     val_acc_meter = AverageMeter()
     loss_meter = AverageMeter()
     #latency_meter = AverageMeter()
-    arithmetic_intensity_meter = AverageMeter()
+    #arithmetic_intensity_meter = AverageMeter()
+    macs_meter = AverageMeter()
 
     controller.zero_grad()
     for i in range(args.controller_train_steps * args.controller_num_aggregate):
@@ -288,7 +291,8 @@ def train_controller(epoch,
         #latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
         #arithmetic_intensity,_ = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
         mac_inputs = torch.randn(1, 3, 224, 224)
-        macs = profile_macs(shared_cnn, args=(mac_inputs, sample_arc))
+        cp_shared_cnn = copy.deepcopy(shared_cnn)
+        macs = profile_macs(cp_shared_cnn.cpu(), args=(mac_inputs, sample_arc))
         reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
@@ -309,7 +313,7 @@ def train_controller(epoch,
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
         #latency_meter.update(latency)
-        arithmetic_intensity_meter.update(arithmetic_intensity)
+        macs_meter.update(macs)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
@@ -334,7 +338,7 @@ def train_controller(epoch,
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start)) + \
-                          '\tAI=%0.3f' % (arithmetic_intensity_meter.val)
+                          '\tMACS=%0.3f' % (macs_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
@@ -358,12 +362,19 @@ def train_controller(epoch,
         opts=dict(title='controller_loss', xlabel='Iteration', ylabel='Loss'),
         update='append' if epoch > 0 else None)
 
-    vis_win['arithmetic_intensity'] = vis.line(
+    vis_win['MACs'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([arithmetic_intensity_meter.avg]),
-        win=vis_win['arithmetic_intensity'],
-        opts=dict(title='Model AI', xlable='Iteration', ylabel='AI'),
+        Y=np.array([macs_meter.avg]),
+        win=vis_win['MACs'],
+        opts=dict(title='MACs', xlable='Iteration', ylabel='MACs'),
         update='append' if epoch > 0 else None)
+
+    # vis_win['arithmetic_intensity'] = vis.line(
+    #     X=np.array([epoch]),
+    #     Y=np.array([arithmetic_intensity_meter.avg]),
+    #     win=vis_win['arithmetic_intensity'],
+    #     opts=dict(title='Model AI', xlable='Iteration', ylabel='AI'),
+    #     update='append' if epoch > 0 else None)
 
     shared_cnn.train()
     return baseline
