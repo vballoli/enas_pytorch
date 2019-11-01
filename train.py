@@ -18,6 +18,7 @@ from models.shared_cnn import SharedCNN
 from utils.utils import AverageMeter, Logger, latency_profiler, cuda_latency_profiler
 from utils.cutout import Cutout
 from arithmetic_intensity.src.ai import ArithmeticIntensity
+from torchprofile.torchprofile.profile import profile_macs
 
 parser = argparse.ArgumentParser(description='ENAS')
 
@@ -285,12 +286,14 @@ def train_controller(epoch,
 
         # detach to make sure that gradients aren't backpropped through the reward
         #latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
-        arithmetic_intensity,_ = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
-        reward = torch.tensor(val_acc.detach()) * ((arithmetic_intensity / 1000.0) ** (-0.07))
+        #arithmetic_intensity,_ = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
+        mac_inputs = torch.randn(1, 3, 224, 224)
+        macs = profile_macs(shared_cnn, args=(mac_inputs, sample_arc))
+        reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((arithmetic_intensity / 1000.0) ** (-0.07))
+            baseline = val_acc * ((macs / 100000000.0) ** (-0.15))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
