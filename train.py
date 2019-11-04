@@ -316,7 +316,7 @@ def train_controller(epoch,
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
         #latency_meter.update(latency)
-        macs_meter.update(macs)
+        energy_meter.update(energy)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
@@ -341,7 +341,7 @@ def train_controller(epoch,
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start)) + \
-                          '\tMACS=%0.3f' % (macs_meter.val)
+                          '\tMACS=%0.3f' % (energy_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
@@ -367,7 +367,7 @@ def train_controller(epoch,
 
     vis_win['Energy'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([macs_meter.avg]),
+        Y=np.array([energy_meter.avg]),
         win=vis_win['Energy'],
         opts=dict(title='Energy', xlable='Iteration', ylabel='Energy'),
         update='append' if epoch > 0 else None)
