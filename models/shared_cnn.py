@@ -63,7 +63,7 @@ class ENASLayer(nn.Module):
     '''
     https://github.com/melodyguan/enas/blob/master/src/cifar10/general_child.py#L245
     '''
-    def __init__(self, layer_id, in_planes, out_planes):
+    def __init__(self, layer_id, in_planes, out_planes, G=2):
         super(ENASLayer, self).__init__()
 
         self.layer_id = layer_id
@@ -71,9 +71,9 @@ class ENASLayer(nn.Module):
         self.out_planes = out_planes
 
         self.branch_0 = ConvBranch(in_planes, out_planes, kernel_size=3)
-        self.branch_1 = ConvBranch(in_planes, out_planes, kernel_size=3, separable=True)
+        self.branch_1 = ConvBranch(in_planes, out_planes, kernel_size=3, separable=True, G=G)
         self.branch_2 = ConvBranch(in_planes, out_planes, kernel_size=5)
-        self.branch_3 = ConvBranch(in_planes, out_planes, kernel_size=5, separable=True)
+        self.branch_3 = ConvBranch(in_planes, out_planes, kernel_size=5, separable=True, G=G)
         self.branch_4 = PoolBranch(in_planes, out_planes, 'avg')
         self.branch_5 = PoolBranch(in_planes, out_planes, 'max')
 
@@ -164,11 +164,11 @@ class FixedLayer(nn.Module):
 
 
 class SeparableConv(nn.Module):
-    def __init__(self, in_planes, out_planes, kernel_size, bias):
+    def __init__(self, in_planes, out_planes, kernel_size, bias, G=2):
         super(SeparableConv, self).__init__()
         padding = (kernel_size - 1) // 2
         self.depthwise = nn.Conv2d(in_planes, in_planes, kernel_size=kernel_size,
-                                   padding=padding, groups=in_planes, bias=bias)
+                                   padding=padding, groups=in_planes//G, bias=bias)
         self.pointwise = nn.Conv2d(in_planes, out_planes, kernel_size=1, bias=bias)
 
     def forward(self, x):
@@ -181,7 +181,7 @@ class ConvBranch(nn.Module):
     '''
     https://github.com/melodyguan/enas/blob/master/src/cifar10/general_child.py#L483
     '''
-    def __init__(self, in_planes, out_planes, kernel_size, separable=False):
+    def __init__(self, in_planes, out_planes, kernel_size, separable=False, G=2):
         super(ConvBranch, self).__init__()
         assert kernel_size in [3, 5], "Kernel size must be either 3 or 5"
 
@@ -197,7 +197,7 @@ class ConvBranch(nn.Module):
 
         if separable:
             self.out_conv = nn.Sequential(
-                SeparableConv(in_planes, out_planes, kernel_size=kernel_size, bias=False),
+                SeparableConv(in_planes, out_planes, kernel_size=kernel_size, bias=False, G=G),
                 nn.BatchNorm2d(out_planes, track_running_stats=False),
                 nn.ReLU())
         else:
@@ -249,7 +249,8 @@ class SharedCNN(nn.Module):
                  num_branches=6,
                  out_filters=24,
                  keep_prob=1.0,
-                 fixed_arc=None
+                 fixed_arc=None,
+                 G=2
                  ):
         super(SharedCNN, self).__init__()
 
@@ -271,7 +272,7 @@ class SharedCNN(nn.Module):
 
         for layer_id in range(self.num_layers):
             if self.fixed_arc is None:
-                layer = ENASLayer(layer_id, self.out_filters, self.out_filters)
+                layer = ENASLayer(layer_id, self.out_filters, self.out_filters, G=G)
             else:
                 layer = FixedLayer(layer_id, self.out_filters, self.out_filters, self.fixed_arc[str(layer_id)])
             self.layers.append(layer)
