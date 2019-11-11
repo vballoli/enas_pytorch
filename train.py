@@ -341,7 +341,7 @@ def train_controller(epoch,
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start)) + \
-                          '\tMACS=%0.3f' % (macs_meter.val)
+                          '\tEnergy=%0.3f' % (energy_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
