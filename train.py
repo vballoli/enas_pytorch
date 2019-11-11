@@ -316,7 +316,7 @@ def train_controller(epoch,
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
         #latency_meter.update(latency)
-        macs_meter.update(macs)
+        energy_meter.update(energy)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
