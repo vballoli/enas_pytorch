@@ -300,7 +300,7 @@ def train_controller(epoch,
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((macs / 300.0) ** (-0.08))
+            baseline = val_acc * ((energy / 300.0) ** (-0.08))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
