@@ -64,7 +64,7 @@ vis = visdom.Visdom()
 vis.env = 'ENAS_' + args.output_filename
 vis_win = {'shared_cnn_acc': None, 'shared_cnn_loss': None, 'controller_reward': None,
            'controller_acc': None, 'controller_loss': None, 'latency': None, 'arithmetic_intensity': None, 
-           'MACs': None}
+           'MACs': None, 'Energy': None}
 
 
 def load_datasets():
@@ -271,7 +271,8 @@ def train_controller(epoch,
     loss_meter = AverageMeter()
     #latency_meter = AverageMeter()
     #arithmetic_intensity_meter = AverageMeter()
-    macs_meter = AverageMeter()
+    #macs_meter = AverageMeter()
+    energy_meter = AverageMeter()
 
     controller.zero_grad()
     for i in range(args.controller_train_steps * args.controller_num_aggregate):
@@ -290,14 +291,16 @@ def train_controller(epoch,
         # detach to make sure that gradients aren't backpropped through the reward
         #latency = float(cuda_latency_profiler(shared_cnn, sample_arc))
         #arithmetic_intensity,_ = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
-        mac_inputs = torch.randn(1, 3, 224, 224)
+        mac_inputs = torch.randn(1, 3, 32, 32)
         cp_shared_cnn = copy.deepcopy(shared_cnn)
-        macs = profile_macs(cp_shared_cnn.cpu(), args=(mac_inputs, sample_arc))
-        reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
+        #macs = profile_macs(cp_shared_cnn.cpu(), args=(mac_inputs, sample_arc))
+        energy = cp_shared_cnn.get_energy(mac_inputs, sample_arc)
+        #reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
+        reward = torch.tensor(val_acc.detach()) * ((energy / 300.0) ** (-0.08))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((macs / 100000000.0) ** (-0.15))
+            baseline = val_acc * ((macs / 300.0) ** (-0.08))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
@@ -362,11 +365,11 @@ def train_controller(epoch,
         opts=dict(title='controller_loss', xlabel='Iteration', ylabel='Loss'),
         update='append' if epoch > 0 else None)
 
-    vis_win['MACs'] = vis.line(
+    vis_win['Energy'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([macs_meter.avg]),
-        win=vis_win['MACs'],
-        opts=dict(title='MACs', xlable='Iteration', ylabel='MACs'),
+        Y=np.array([energy_meter.avg]),
+        win=vis_win['Energy'],
+        opts=dict(title='Energy', xlable='Iteration', ylabel='Energy'),
         update='append' if epoch > 0 else None)
 
     # vis_win['arithmetic_intensity'] = vis.line(

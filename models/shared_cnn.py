@@ -58,6 +58,13 @@ class FactorizedReduction(nn.Module):
             out = self.bn(out)
             return out
 
+    @property
+    def get_energy(self):
+        if self.stride == 1:
+            return 6.7
+        else:
+            return 16.52
+
 
 class ENASLayer(nn.Module):
     '''
@@ -106,6 +113,34 @@ class ENASLayer(nn.Module):
                 out += prev_layers[i]
 
         out = self.bn(out)
+        return out
+
+    def get_energy(self, x, prev_layers, sample_arc):
+        layer_type = sample_arc[0]
+        if self.layer_id > 0:
+            skip_indices = sample_arc[1]
+        else:
+            skip_indices = []
+        out = 0
+        if layer_type == 0:
+            out = self.branch_0.get_energy()
+        elif layer_type == 1:
+            out = self.branch_1.get_energy()
+        elif layer_type == 2:
+            out = self.branch_2.get_energy()
+        elif layer_type == 3:
+            out = self.branch_3.get_energy()
+        elif layer_type == 4:
+            out = self.branch_4.get_energy()
+        elif layer_type == 5:
+            out = self.branch_5.get_energy()
+        else:
+            raise ValueError("Unknown layer_type {}".format(layer_type))
+
+        for i, skip in enumerate(skip_indices):
+            if skip == 1:
+                out += 5
+
         return out
 
 
@@ -213,6 +248,19 @@ class ConvBranch(nn.Module):
         out = self.out_conv(out)
         return out
 
+    @property
+    def get_energy(self):
+        if self.separable:
+            if self.kernel_size == 3:
+                return 9.40
+            else:
+                return 9.51
+        else:
+            if self.kernel_size == 3:
+                return 12.3
+            else:
+                return 13.6
+
 
 class PoolBranch(nn.Module):
     '''
@@ -241,6 +289,13 @@ class PoolBranch(nn.Module):
         out = self.conv1(x)
         out = self.pool(out)
         return out
+
+    @property
+    def get_energy(self):
+        if self.pool == 'avg':
+            return 11.28
+        else:
+            return 9.05
 
 
 class SharedCNN(nn.Module):
@@ -315,3 +370,16 @@ class SharedCNN(nn.Module):
         out = self.classify(x)
 
         return out
+
+    def get_energy(self, x, sample_arc):
+        energy = 7.237
+        prev_layers = []
+        pool_count = 0
+        for layer_id in range(self.num_layers):
+            energy += self.layers[layer_id].get_energy()
+            if layer_id in self.pool_layers:
+                for i, prev_layer in enumerate(prev_layers):
+                    # Go through the outputs of all previous layers and downsample them
+                    energy += self.pooled_layers[pool_count].get_energy()
+                    pool_count += 1
+        return energy
