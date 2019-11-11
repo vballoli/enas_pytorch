@@ -115,7 +115,7 @@ class ENASLayer(nn.Module):
         out = self.bn(out)
         return out
 
-    def get_energy(self, x, prev_layers, sample_arc):
+    def get_energy(self, prev_layers, sample_arc):
         layer_type = sample_arc[0]
         if self.layer_id > 0:
             skip_indices = sample_arc[1]
@@ -376,7 +376,7 @@ class SharedCNN(nn.Module):
         prev_layers = []
         pool_count = 0
         for layer_id in range(self.num_layers):
-            energy += self.layers[layer_id].get_energy()
+            energy += self.layers[layer_id].get_energy(prev_layers, sample_arc[str(layer_id)])
             if layer_id in self.pool_layers:
                 for i, prev_layer in enumerate(prev_layers):
                     # Go through the outputs of all previous layers and downsample them
