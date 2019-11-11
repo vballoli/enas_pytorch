@@ -296,11 +296,11 @@ def train_controller(epoch,
         #macs = profile_macs(cp_shared_cnn.cpu(), args=(mac_inputs, sample_arc))
         energy = cp_shared_cnn.get_energy(mac_inputs, sample_arc)
         #reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
-        reward = torch.tensor(val_acc.detach()) * ((energy / 300.0) ** (-0.08))
+        reward = torch.tensor(val_acc.detach()) * ((energy / 250.0) ** (-0.08))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((energy / 300.0) ** (-0.08))
+            baseline = val_acc * ((energy / 250.0) ** (-0.08))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
