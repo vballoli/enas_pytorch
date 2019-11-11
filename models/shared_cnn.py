@@ -58,7 +58,6 @@ class FactorizedReduction(nn.Module):
             out = self.bn(out)
             return out
 
-    @property
     def get_energy(self):
         if self.stride == 1:
             return 6.7
@@ -248,7 +247,6 @@ class ConvBranch(nn.Module):
         out = self.out_conv(out)
         return out
 
-    @property
     def get_energy(self):
         if self.separable:
             if self.kernel_size == 3:
@@ -290,7 +288,6 @@ class PoolBranch(nn.Module):
         out = self.pool(out)
         return out
 
-    @property
     def get_energy(self):
         if self.pool == 'avg':
             return 11.28
