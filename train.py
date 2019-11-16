@@ -20,6 +20,7 @@ from utils.utils import AverageMeter, Logger, latency_profiler, cuda_latency_pro
 from utils.cutout import Cutout
 from arithmetic_intensity.src.ai import ArithmeticIntensity
 from torchprofile.torchprofile.profile import profile_macs
+from thop.profile import profile
 
 parser = argparse.ArgumentParser(description='ENAS')
 
@@ -64,7 +65,7 @@ vis = visdom.Visdom()
 vis.env = 'ENAS_' + args.output_filename
 vis_win = {'shared_cnn_acc': None, 'shared_cnn_loss': None, 'controller_reward': None,
            'controller_acc': None, 'controller_loss': None, 'latency': None, 'arithmetic_intensity': None, 
-           'MACs': None, 'Energy': None}
+           'MACs': None, 'Energy': None, 'MM': None}
 
 
 def load_datasets():
@@ -272,7 +273,8 @@ def train_controller(epoch,
     #latency_meter = AverageMeter()
     #arithmetic_intensity_meter = AverageMeter()
     #macs_meter = AverageMeter()
-    energy_meter = AverageMeter()
+    mm_meter = AverageMeter()
+    #energy_meter = AverageMeter()
 
     controller.zero_grad()
     for i in range(args.controller_train_steps * args.controller_num_aggregate):
@@ -293,14 +295,16 @@ def train_controller(epoch,
         #arithmetic_intensity,_ = ArithmeticIntensity(model=shared_cnn, sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
         mac_inputs = torch.randn(1, 3, 32, 32)
         cp_shared_cnn = copy.deepcopy(shared_cnn)
-        #macs = profile_macs(cp_shared_cnn.cpu(), args=(mac_inputs, sample_arc))
-        energy = cp_shared_cnn.get_energy(mac_inputs, sample_arc)
-        #reward = torch.tensor(val_acc.detach()) * ((macs / 100000000.0) ** (-0.15))
-        reward = torch.tensor(val_acc.detach()) * ((energy / 250.0) ** (-0.08))
+        macs, _ = profile(cp_shared_cnn.cpu(), inputs=(mac_inputs, sample_arc))
+        mem, _ = ArithmeticIntensity(cp_shared_cnn.cpu(), sample_arc=sample_arc, input_dims=(1, 3, 224, 224)).get_metrics()
+        #energy = cp_shared_cnn.get_energy(mac_inputs, sample_arc)
+        mm = ((macs / 100000000.0) ** 0.5) * ((mem / 1000000.0) ** 0.5)
+        reward = torch.tensor(val_acc.detach()) * (mm ** (-0.1))
+        #reward = torch.tensor(val_acc.detach()) * ((energy / 250.0) ** (-0.08))
         reward += args.controller_entropy_weight * controller.sample_entropy
 
         if baseline is None:
-            baseline = val_acc * ((energy / 250.0) ** (-0.08))
+            baseline = val_acc * (mm  ** (-0.1))
         else:
             baseline -= (1 - args.controller_bl_dec) * (baseline - reward)
             # detach to make sure that gradients are not backpropped through the baseline
@@ -316,7 +320,8 @@ def train_controller(epoch,
         val_acc_meter.update(val_acc.item())
         loss_meter.update(loss.item())
         #latency_meter.update(latency)
-        energy_meter.update(energy)
+        #energy_meter.update(energy)
+        mm_meter.update(mm)
 
         # Average gradient over controller_num_aggregate samples
         loss = loss / args.controller_num_aggregate
@@ -341,7 +346,7 @@ def train_controller(epoch,
                           '\tacc=%.4f' % (val_acc_meter.val) + \
                           '\tbl=%.2f' % (baseline_meter.val) + \
                           '\ttime=%.2fit/s' % (1. / (end - start)) + \
-                          '\tEnergy=%0.3f' % (energy_meter.val)
+                          '\MM=%0.3f' % (mm_meter.val)
                 print(display)
 
     vis_win['controller_reward'] = vis.line(
@@ -365,11 +370,11 @@ def train_controller(epoch,
         opts=dict(title='controller_loss', xlabel='Iteration', ylabel='Loss'),
         update='append' if epoch > 0 else None)
 
-    vis_win['Energy'] = vis.line(
+    vis_win['MM'] = vis.line(
         X=np.array([epoch]),
-        Y=np.array([energy_meter.avg]),
-        win=vis_win['Energy'],
-        opts=dict(title='Energy', xlable='Iteration', ylabel='Energy'),
+        Y=np.array([mm_meter.avg]),
+        win=vis_win['MM'],
+        opts=dict(title='MM', xlable='Iteration', ylabel='MM'),
         update='append' if epoch > 0 else None)
 
     # vis_win['arithmetic_intensity'] = vis.line(

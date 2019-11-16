@@ -16,7 +16,7 @@ class ArithmeticIntensity(object):
         assert alpha is not None, "Enter valid alpha"
         assert beta is not None, "Enter valid beta"
         if model:
-            self.model = copy.deepcopy(model)
+            pass
         else:
             try:
                 self.model = read_model(path)
@@ -48,16 +48,19 @@ class ArithmeticIntensity(object):
         dummy = torch.ones(1, *self.input_dims[1:])
         self.model.apply(add_hook)
         with torch.no_grad():
-            self.model(torch.ones(1, 3, 224, 224).cuda(), self.sample_arc)
+            self.model(torch.ones(1, 3, 224, 224), self.sample_arc)
         total_ai = 0
         total_macs = 0
+        weights = 0
+        memory_access_in = 0
+        memory_access_out = 0
         for m in self.model.modules():
             if len(list(m.children())) > 0:  # skip for non-leaf module
                 continue
             total_ai += m.ai
             total_macs += m.macs
-            weights = m.weights
-            memory_access_in = m.memory_access_in
-            memory_access_out = m.memory_access_out
+            weights += float(m.weights)
+            memory_access_in += float(m.memory_access_in)
+            memory_access_out += float(m.memory_access_out)
 
-        return float(total_ai), float(total_macs)
+        return memory_access_in + memory_access_out + weights, float(total_macs)
