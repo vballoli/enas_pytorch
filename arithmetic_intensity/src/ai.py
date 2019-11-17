@@ -16,7 +16,7 @@ class ArithmeticIntensity(object):
         assert alpha is not None, "Enter valid alpha"
         assert beta is not None, "Enter valid beta"
         if model:
-            pass
+            self.model = model
         else:
             try:
                 self.model = read_model(path)
