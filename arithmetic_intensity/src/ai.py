@@ -43,7 +43,6 @@ class ArithmeticIntensity(object):
     def get_metrics(self):
         """
         """
-        self.model.cuda()
         self.model.eval()
         dummy = torch.ones(1, *self.input_dims[1:])
         self.model.apply(add_hook)
