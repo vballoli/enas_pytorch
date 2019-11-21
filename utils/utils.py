@@ -2,6 +2,10 @@ import csv
 import sys
 import torch
 import copy
+import subprocess
+import time
+import signal
+import os
 
 
 class CSVLogger():
@@ -80,7 +84,7 @@ def latency_profiler(model, sample_arc, gpu=True, tensor=(1, 3, 224, 224)):
     del tensor
     return sum(times) / 100.0
 
-def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 224, 224), runs=10, device=0):
+def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 32, 32), runs=10, device=0):
     tensor = torch.randn(tensor, requires_grad=False).cuda(device=device)
     eval_model = copy.deepcopy(model)
     eval_model = eval_model.cuda(device=device)
@@ -96,3 +100,29 @@ def cuda_latency_profiler(model, sample_arc, tensor=(1, 3, 224, 224), runs=10, d
         torch.cuda.synchronize(device=device)
         times.append(start.elapsed_time(end))
     return sum(times) / float(runs)
+
+def get_energy(model, sample_arc, gpu_id=0, num_gpus=2):
+    model = model.cuda()
+    command = "nvidia-smi --query-gpu=power.draw --format=csv --loop-ms=100"
+    times = []
+    for i in range(1030):
+        if i == 20:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+        start = torch.cuda.Event(enable_timing=True)
+        end = torch.cuda.Event(enable_timing=True)
+        torch.cuda.synchronize()
+        tensor = torch.randn(1, 3, 224, 224).cuda()
+        start.record()
+        model(tensor, sample_arc) 
+        end.record()
+        torch.cuda.synchronize()
+        if i == 1010:
+            os.killpg(process.pid, signal.SIGTERM)
+        times.append(start.elapsed_time(end)) 
+    power = 0
+    num = 0
+    for i, line in enumerate(process.stdout.readlines()[1:-1]):
+        if i % num_gpus == gpu_id:
+            power += float(str(line)[2:-1].split(' ')[0])
+            num += 1
+    return (power/num)*sum(times)/len(times)
