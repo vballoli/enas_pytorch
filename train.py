@@ -670,6 +670,43 @@ def visualize_cam(mask, img):
     
     return heatmap, result
 
+def denormalize(tensor, mean, std):
+    if not tensor.ndimension() == 4:
+        raise TypeError('tensor should be 4D')
+
+    mean = torch.FloatTensor(mean).view(1, 3, 1, 1).expand_as(tensor).to(tensor.device)
+    std = torch.FloatTensor(std).view(1, 3, 1, 1).expand_as(tensor).to(tensor.device)
+
+    return tensor.mul(std).add(mean)
+
+
+def normalize(tensor, mean, std):
+    if not tensor.ndimension() == 4:
+        raise TypeError('tensor should be 4D')
+
+    mean = torch.FloatTensor(mean).view(1, 3, 1, 1).expand_as(tensor).to(tensor.device)
+    std = torch.FloatTensor(std).view(1, 3, 1, 1).expand_as(tensor).to(tensor.device)
+
+    return tensor.sub(mean).div(std)
+
+
+class Normalize(object):
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, tensor):
+        return self.do(tensor)
+    
+    def do(self, tensor):
+        return normalize(tensor, self.mean, self.std)
+    
+    def undo(self, tensor):
+        return denormalize(tensor, self.mean, self.std)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
 def main():
     global args
 
@@ -726,6 +763,12 @@ def main():
     shared_cnn.load_state_dict(checkpoint['shared_cnn_state_dict'])
     sample_arc = checkpoint['best_arc']
     for i, (images, labels) in enumerate(data_loaders['train_subset']):
+        shared_cnn.cpu()
+        images.cpu()
+        images = images[0].view(1, 3, 32, 32)
+        normalizer = Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        images = F.upsample(images, size=(32, 32), mode='bilinear', align_corners=False)
+        images = normalizer(images)
         logit = shared_cnn(images, sample_arc)
         score = logit[:, logit.max(1)[-1]].squeeze()
         shared_cnn.zero_grad()
