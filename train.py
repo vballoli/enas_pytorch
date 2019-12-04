@@ -10,9 +10,12 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from torchvision import datasets, transforms
+from torchvision.utils import save_image
 from torch.utils.data.dataset import Subset
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from RAdam.radam import RAdam
+import torch.nn.functional as F
+import cv2
 
 from models.controller import Controller
 from models.shared_cnn import SharedCNN
@@ -192,7 +195,7 @@ def train_shared_cnn(epoch,
         shared_cnn.zero_grad()
         pred = shared_cnn(images, sample_arc)
         loss = nn.CrossEntropyLoss()(pred, labels)
-        loss.backward()
+        loss.save()
         grad_norm = torch.nn.utils.clip_grad_norm_(shared_cnn.parameters(), args.child_grad_bound)
         shared_cnn_optimizer.step()
 
@@ -647,6 +650,25 @@ def train_fixed(start_epoch,
         filename = 'checkpoints/' + args.output_filename + '_fixed.pth.tar'
         torch.save(state, filename)
 
+def visualize_cam(mask, img):
+    """Make heatmap from mask and synthesize GradCAM result image using heatmap and img.
+    Args:
+        mask (torch.tensor): mask shape of (1, 1, H, W) and each element has value in range [0, 1]
+        img (torch.tensor): img shape of (1, 3, H, W) and each pixel value is in range [0, 1]
+        
+    Return:
+        heatmap (torch.tensor): heatmap img shape of (3, H, W)
+        result (torch.tensor): synthesized GradCAM result of same shape with heatmap.
+    """
+    heatmap = cv2.applyColorMap(np.uint8(255 * mask.squeeze()), cv2.COLORMAP_JET)
+    heatmap = torch.from_numpy(heatmap).permute(2, 0, 1).float().div(255)
+    b, g, r = heatmap.split(1)
+    heatmap = torch.cat([r, g, b])
+    
+    result = heatmap+img.cpu()
+    result = result.div(result.max()).squeeze()
+    
+    return heatmap, result
 
 def main():
     global args
@@ -699,6 +721,36 @@ def main():
     shared_cnn_scheduler = CosineAnnealingLR(optimizer=shared_cnn_optimizer,
                                              T_max=args.child_lr_T,
                                              eta_min=args.child_lr_min)
+    
+    checkpoint = torch.load(args.resume)
+    shared_cnn.load_state_dict(checkpoint['shared_cnn_state_dict'])
+    sample_arc = checkpoint['best_arc']
+    for i, (images, labels) in enumerate(data_loaders['train_subset']):
+        logit = shared_cnn(images, sample_arc)
+        score = logit[:, logit.max(1)[-1]].squeeze()
+        shared_cnn.zero_grad()
+        score.backward(retain_graph=False)
+        gradients, activations = shared_cnn.get_maps()
+        gradients = gradients['value']
+        activations = activations['value']
+        b, k, u, v = gradients.size()
+        c = 3
+        h = 32
+        w = 32
+        alpha = gradients.view(b, k, -1).mean(2)
+        #alpha = F.relu(gradients.view(b, k, -1)).mean(2)
+        weights = alpha.view(b, k, 1, 1)
+
+        saliency_map = (weights*activations).sum(1, keepdim=True)
+        saliency_map = F.relu(saliency_map)
+        saliency_map = F.upsample(saliency_map, size=(h, w), mode='bilinear', align_corners=False)
+        saliency_map_min, saliency_map_max = saliency_map.min(), saliency_map.max()
+        saliency_map = (saliency_map - saliency_map_min).div(saliency_map_max - saliency_map_min).data
+
+        _, result = visualize_cam(images, saliency_map)
+        save_image(result, args.output_filename + '.png')
+        break
+    return
 
     if args.resume:
         if os.path.isfile(args.resume):

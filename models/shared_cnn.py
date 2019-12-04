@@ -340,6 +340,18 @@ class SharedCNN(nn.Module):
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout(p=1. - self.keep_prob)
         self.classify = nn.Linear(self.out_filters, 10)
+        self.gradients = {}
+        self.activations = {}
+
+        def backward_hook(module, grad_input, grad_output):
+            self.gradients['value'] = grad_output[0]
+            return None
+        def forward_hook(module, input, output):
+            self.activations['value'] = output
+            return None
+        
+        self.global_avg_pool.register_forward_hook(forward_hook)
+        self.global_avg_pool.register_backward_hook(backward_hook)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -380,3 +392,6 @@ class SharedCNN(nn.Module):
                     energy += self.pooled_layers[pool_count].get_energy()
                     pool_count += 1
         return energy
+
+    def get_maps(self):
+        return self.gradients, self.activations

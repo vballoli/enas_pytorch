@@ -613,7 +613,19 @@ def train_fixed(start_epoch,
                                             eta_min=args.child_lr_min)
 
     test_loader = data_loaders['test_dataset']
-
+    best_arc = {}
+    best_arc['0'] = [torch.Tensor([3])]
+    best_arc['1'] = [torch.Tensor([2]), torch.Tensor([0])]
+    best_arc['2'] = [torch.Tensor([2]), torch.Tensor([0, 0])]
+    best_arc['3'] = [torch.Tensor([3]), torch.Tensor([0, 1, 0])]
+    best_arc['4'] = [torch.Tensor([5]), torch.Tensor([0, 1, 0, 0])]
+    best_arc['5'] = [torch.Tensor([1]), torch.Tensor([0, 1, 0, 0, 0])]
+    best_arc['6'] = [torch.Tensor([2]), torch.Tensor([0, 0, 0, 0, 1, 0])]
+    best_arc['7'] = [torch.Tensor([1]), torch.Tensor([0, 1, 0, 1, 1, 0, 0])]
+    best_arc['8'] = [torch.Tensor([5]), torch.Tensor([1, 0, 0, 1, 1, 0, 1, 0])]
+    best_arc['9'] = [torch.Tensor([2]), torch.Tensor([0, 0, 1, 0, 1, 1, 1, 0, 0])]
+    best_arc['10'] = [torch.Tensor([3]), torch.Tensor([0, 0, 1, 1, 1, 1, 1, 0, 0, 0])]
+    best_arc['11'] = [torch.Tensor([0]), torch.Tensor([0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0])]
     print("Latency: ", cuda_latency_profiler(fixed_cnn, best_arc))
     print("Energy: ", get_energy(fixed_cnn, best_arc, gpu_id=1))
     mac_inputs = torch.randn(1, 3, 32, 32)
